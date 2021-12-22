@@ -3,10 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import 'package:location_tracker/screens/homepage2.dart';
 import 'package:path/path.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:location/location.dart' as loc;
 
 // ignore: must_be_immutable
 class CameraUpload extends StatefulWidget {
@@ -18,6 +18,7 @@ class CameraUpload extends StatefulWidget {
 }
 
 class _CameraUploadState extends State<CameraUpload> {
+  final loc.Location location = loc.Location();
   UploadTask? task;
   File? imageFile;
   String? downloadUrl;
@@ -28,6 +29,8 @@ class _CameraUploadState extends State<CameraUpload> {
   @override
   void initState() {
     super.initState();
+    location.changeSettings(interval: 300, accuracy: loc.LocationAccuracy.high);
+    location.enableBackgroundMode(enable: true);
     isDone = false;
   }
 
@@ -35,7 +38,7 @@ class _CameraUploadState extends State<CameraUpload> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color.fromRGBO(7, 84, 94, 0.9),
+        backgroundColor: const Color.fromRGBO(225, 232, 237, 0.8),
         appBar: AppBar(
           elevation: 2,
           backgroundColor: const Color.fromRGBO(7, 84, 94, 0.9),
@@ -45,6 +48,8 @@ class _CameraUploadState extends State<CameraUpload> {
           ),
           centerTitle: true,
         ),
+
+        // PREVIEWING IMAGE
         body: Padding(
           padding: const EdgeInsets.all(30),
           child: Column(
@@ -52,8 +57,8 @@ class _CameraUploadState extends State<CameraUpload> {
             children: [
               if (imageFile != null)
                 Container(
-                  width: 480,
-                  height: 480,
+                  width: 500,
+                  height: 500,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.grey,
@@ -71,10 +76,10 @@ class _CameraUploadState extends State<CameraUpload> {
                     ],
                   ),
                 )
-              else
+              else //NO IAMGE YET
                 Container(
-                  width: 500,
-                  height: 500,
+                  width: 480,
+                  height: 480,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
@@ -114,12 +119,16 @@ class _CameraUploadState extends State<CameraUpload> {
                   ),
                 ],
               ),
+              //GETING DATE
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
                         onPressed: () {
-                          uploadImage();
+                          DateTime dateToday = DateTime.now();
+                          String date = dateToday.toString().substring(0, 10);
+                          // print(date);
+                          uploadImage(date);
                           task!.whenComplete(() {
                             setState(() {
                               show = false;
@@ -148,6 +157,7 @@ class _CameraUploadState extends State<CameraUpload> {
     );
   }
 
+//GETTING IMAGE FROM SOURCE
   getImage({required ImageSource source}) async {
     final file = await ImagePicker().pickImage(source: source);
 
@@ -160,7 +170,8 @@ class _CameraUploadState extends State<CameraUpload> {
     }
   }
 
-  Future uploadImage() async {
+// UPLOADING FILE
+  Future uploadImage(var date) async {
     if (imageFile == null) return;
     FirebaseFirestore firebaseFirestore = FirebaseFirestore.instance;
     User? user = FirebaseAuth.instance.currentUser;
@@ -182,16 +193,27 @@ class _CameraUploadState extends State<CameraUpload> {
         imageFile == null;
       });
     });
-    final downloadUrl = await snapshot.ref.getDownloadURL();
-    // print('download link - $downloadUrl');
+// UPLOADING ADDRESS ,DATE, PHONENUMBER
+    final loc.LocationData _locationResult =
+        await loc.Location.instance.getLocation();
 
-    await firebaseFirestore
+    final downloadUrl = await snapshot.ref.getDownloadURL();
+
+    // ignore: unused_local_variable
+    var geoLocation = await firebaseFirestore
         .collection('users')
         .doc(FirebaseAuth.instance.currentUser!.uid)
         .collection('images')
-        .add({'downloadUrl': downloadUrl}).whenComplete(() => isDone = true);
+        .add({
+      'downloadUrl': downloadUrl,
+      'latitude': _locationResult.latitude as double,
+      'longitude': _locationResult.longitude as double,
+      'date': date as String,
+      'number': FirebaseAuth.instance.currentUser!.phoneNumber as String,
+    }).whenComplete(() => isDone = true);
   }
 
+  //SHOWING UPLOADING PERCENTAGE
   Widget buildUplaodStatus(UploadTask task) => StreamBuilder<TaskSnapshot>(
         stream: task.snapshotEvents,
         builder: (context, snapshot) {
@@ -199,16 +221,16 @@ class _CameraUploadState extends State<CameraUpload> {
             final snap = snapshot.data!;
             final process = snap.bytesTransferred / snap.totalBytes;
             final percentage = (process * 100).toStringAsFixed(2);
-
             if (!isDone!) {
               return Text(
                 '$percentage %',
                 style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white),
+                    color: Colors.black),
               );
             } else {
+              //WHEN COMPLETED UPLOADING RETURNING TO HOMEPAGE
               return ElevatedButton(
                   onPressed: () {
                     Navigator.push(
@@ -229,6 +251,7 @@ class _CameraUploadState extends State<CameraUpload> {
       );
 }
 
+//STORING IMAGE IN FIRESTORE
 class FirebaseApi {
   static UploadTask? uploadFile(String destination, File imageFile) {
     try {

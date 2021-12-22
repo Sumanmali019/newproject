@@ -12,9 +12,7 @@ class InitializerWidget extends StatefulWidget {
 
 class _InitializerWidgetState extends State<InitializerWidget> {
   late FirebaseAuth _auth;
-
   late User? _user;
-
   bool isLoading = true;
 
   @override

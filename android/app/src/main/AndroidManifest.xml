@@ -1,14 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.location_tracker">
     
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
-
-
+    <uses-permission android:name="andriod.permission.ACCESS_FINE_LOCATION"/>
+ 
    <application
         android:label="location_tracker"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+           
+      <!--  api key
+        <meta-data android:name="com.google.andriod.geo.API_KEY"
+           android:value="AIzaSyBn6RJ7q0BJ2ah-d3Bz_6r3xk5pEkuJPYs"/> -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
